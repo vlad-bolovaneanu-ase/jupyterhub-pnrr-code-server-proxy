@@ -84,12 +84,14 @@ def setup_code_server():
         '--ignore-last-opened'  # needed to set a specific working directory
     ]
 
-    disable_password = os.environ.get('CODE_DISABLE_PASSWORD', 'false').lower() in ('1', 'true', 'yes')
+    # No password auth
+    command_arguments.append('--auth=none')
 
-    if disable_password:
-        command_arguments.append('--auth=none')
-    else:
-        command_arguments.append('--auth=password')
+    extensions_dir = os.getenv('CODE_EXTENSIONSDIR', None)
+
+    if extensions_dir:
+        os.makedirs(extensions_dir, exist_ok=True)    
+        additional_arguments += ["--extensions-dir", extensions_dir]
 
 
     full_command = [which_code_server()] + command_arguments + additional_arguments + ['--'] + [working_directory]
