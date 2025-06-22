@@ -13,35 +13,13 @@ def which_code_server():
     return command
 
 
-def pre_start_hook(code_server_module):
-
-    LMOD_CMD = os.environ.get('LMOD_CMD', None)
-    MODULEPATH = os.environ.get('MODULEPATH', None)
-    if not LMOD_CMD and not MODULEPATH:
-        raise EnvironmentError('Cannot initializing code-server for the jupyter-code-server proxy! Environment variable LMOD_CMD/MODULEPATH not set.')
-
-    command_to_load = (LMOD_CMD, 'python', '--terse', 'load', str(code_server_module))
-
-    subp = run(command_to_load, capture_output=True, text=True)
-    if not subp.returncode == 0:
-        raise OSError("Error executing $LMOD_CMD command to preload code-server: " + str(subp.stderr))
-
-    # execute python environment functions from the module load call
-    exec(subp.stdout)
-
-
 def setup_code_server():
-
-    code_server_module = os.environ.get('JSP_CODE_SERVER_LMOD_MODULE', None)
-    if code_server_module:
-        pre_start_hook(code_server_module)
 
     proxy_config_dict = {
         "new_browser_window": True,
         "timeout": 30,
         "launcher_entry": {
-            # Option to disable launcher, e.g. for users that are not supposed to have editor available
-            "enabled": False if os.environ.get('JSP_CODE_SERVER_LAUNCHER_DISABLED') else True,
+            "enabled": True,
             "title": "VSCode Web IDE",
             "path_info": "vscode",
             "icon_path": os.path.join(_HERE, 'icons/vscode.svg')
@@ -49,55 +27,14 @@ def setup_code_server():
         }
 
     # if code-server is already running and listening to TCP port
-    code_server_port = os.environ.get('JSP_CODE_SERVER_PORT', None)
-    if code_server_port:
-        # set `command` be empty to avoid starting new code-server process and proxy requests to port specified
-        proxy_config_dict.update({
-            "command": [],
-            "port": int(code_server_port)
-            })
-        return proxy_config_dict
+    try:
+        code_server_port = int(os.environ.get('CODE_PORT', '13777'))
+    except Exception:
+        code_server_port = 13777
 
-    # if code-server is already running and listening to UNIX socket
-    code_server_socket = os.environ.get('JSP_CODE_SERVER_SOCKET', None)
-    if code_server_socket:
-        # set `command` be empty to avoid starting new code-server process and proxy requests to socket specified
-        proxy_config_dict.update({
-            "command": [],
-            "unix_socket": code_server_socket
-            })
-        return proxy_config_dict
+    jh_generic_user = os.environ.get('NB_USER', 'jovyan')
+    jh_username = os.environ.get("JUPYTERHUB_USER", None)
 
-    working_directory = os.environ.get('CODE_WORKING_DIRECTORY', None)
-    if not working_directory:
-        working_directory = os.environ.get('JUPYTERHUB_ROOT_DIR', os.environ.get('JUPYTER_SERVER_ROOT', os.environ.get('HOME')))
+    proxy_command = ["/bin/bash", "start_proxy.sh", code_server_port, jh_username, jh_generic_user]
 
-    additional_arguments = []
-
-    socket_file, socket_file_name = mkstemp()
-
-    command_arguments = [
-        '--socket={unix_socket}',
-        '--disable-update-check',
-        '--disable-file-uploads',
-        '--disable-file-downloads',
-        '--ignore-last-opened'  # needed to set a specific working directory
-    ]
-
-    # No password auth
-    command_arguments.append('--auth=none')
-
-    extensions_dir = os.getenv('CODE_EXTENSIONSDIR', None)
-
-    if extensions_dir:
-        os.makedirs(extensions_dir, exist_ok=True)    
-        additional_arguments += ["--extensions-dir", extensions_dir]
-
-
-    full_command = [which_code_server()] + command_arguments + additional_arguments + ['--'] + [working_directory]
-    proxy_config_dict.update({
-        "command": full_command,
-        "unix_socket": socket_file_name
-        })
-
-    return proxy_config_dict
+    return proxy_config_dict.update({"command": proxy_command})

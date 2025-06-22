@@ -3,6 +3,7 @@ channels:
     - conda-forge
 dependencies:
     - jupyter-server-proxy
+    - flask
     - jupyterlab
     - python-build
     - code-server
