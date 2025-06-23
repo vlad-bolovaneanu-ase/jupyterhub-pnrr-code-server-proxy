@@ -14,7 +14,7 @@ def which_code_server():
 
 
 def setup_code_server():
-
+    which_code_server()
     proxy_config_dict = {
         "new_browser_window": True,
         "timeout": 30,
@@ -26,7 +26,6 @@ def setup_code_server():
             }
         }
 
-    # if code-server is already running and listening to TCP port
     try:
         code_server_port = int(os.environ.get('CODE_PORT', '13777'))
     except Exception:
