@@ -1,5 +1,5 @@
 from flask import Flask, request, redirect, Response
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, urlunparse
 import requests
 import argparse
 import os
@@ -20,10 +20,10 @@ def create_app(port: int, username: str) -> Flask:
         # Apply only to your prefix path
         if request.path.startswith("/user/") and not request.path.endswith('/'):
             # If the request has subpaths and lacks a trailing slash, redirect with 308
-            full_path = request.path + '/'
-            if request.query_string:
-                full_path += '?' + request.query_string.decode()
-            return redirect(full_path, code=308)
+            parsed = urlparse(request.url)
+            new_path = parsed.path + '/'
+            new_url = urlunparse(parsed._replace(path=new_path))
+            return redirect(new_url, code=308)
 
     @app.route(f"{PREFIX_BASE}/<path:path>", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
     def proxy(path):
