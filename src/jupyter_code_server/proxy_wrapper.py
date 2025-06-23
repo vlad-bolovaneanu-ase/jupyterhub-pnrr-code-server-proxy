@@ -1,4 +1,5 @@
 from flask import Flask, request, Response
+from urllib.parse import urljoin, urlparse
 import requests
 import argparse
 import os
@@ -29,10 +30,34 @@ def create_app(port: int, username: str) -> Flask:
             stream=True,
         )
 
+        if 300 <= resp.status_code < 400:
+            location = resp.headers.get('Location')
+            if location:
+                # Rewrite Location header to proxy base path
+                # If location is absolute URL, extract path part
+                parsed = urlparse(location)
+                # Use path + query + fragment (ignore scheme/netloc to avoid redirecting outside proxy)
+                new_path = parsed.path
+                if parsed.query:
+                    new_path += '?' + parsed.query
+                if parsed.fragment:
+                    new_path += '#' + parsed.fragment
+
+                # Join with your proxy prefix base path
+                # For example, prefix "/user/vlad/vscode"
+                new_location = urljoin(PREFIX_BASE + '/', new_path.lstrip('/'))
+
+                # Build the response with the rewritten Location header
+                headers = [(k, v) for k, v in resp.headers.items() if k.lower() != 'content-length']
+                # Replace Location with rewritten one
+                headers = [(k, v) if k.lower() != 'location' else ('Location', new_location) for k, v in headers]
+
+                return Response(resp.content, status=resp.status_code, headers=headers)
+
+        # For non-redirect responses, copy headers as usual, excluding hop-by-hop
         excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-        response_headers = [(k, v) for k, v in resp.raw.headers.items()
-                            if k.lower() not in excluded_headers]
-        logger.info(f"Proxy {PREFIX_BASE}/{path} -> {path}")
+        response_headers = [(k, v) for k, v in resp.raw.headers.items() if k.lower() not in excluded_headers]
+
         return Response(resp.content, status=resp.status_code, headers=response_headers)
 
     @app.route(f"{PREFIX_BASE}/", defaults={"path": ""})
