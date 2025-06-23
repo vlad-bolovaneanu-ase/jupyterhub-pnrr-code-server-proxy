@@ -1,8 +1,10 @@
-from flask import Flask, request, redirect, Response
-# from urllib.parse import urljoin, urlparse, urlunparse
 import requests
 import argparse
 import os
+
+from flask import Flask, request, redirect, Response
+from werkzeug.middleware.proxy_fix import ProxyFix
+from urllib.parse import urljoin, urlparse, urlunparse
 
 from jupyter_code_server.logger import setup_logger
 
@@ -10,10 +12,30 @@ logger = setup_logger(name="proxy_wrapper")
 
 def create_app(port: int, username: str) -> Flask:
     app = Flask(__name__)
+    # If JupyterHub/nginx sets X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host, etc:
+    # Adjust the numbers (x_for, x_proto, x_host) to match how many proxies are in front.
+    # Usually x_proto=1 and x_host=1 is enough if there is one proxy layer setting these headers.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     app.url_map.strict_slashes = False
     URL_HOME = "http://localhost:{port}".format(port=port)
     PREFIX_BASE = "/user/{user}/vscode".format(user=username)
+
+    @app.before_request
+    def ensure_trailing_slash():
+        # Only target paths under our PREFIX_BASE
+        # Also ensure we don’t redirect root "/user/…/vscode" itself if it's exactly the base without subpath—
+        # but if you want always slash, adjust accordingly.
+        # Here: if path starts with PREFIX_BASE and does not end with '/', redirect.
+        path = request.path
+        if path.startswith(PREFIX_BASE) and not path.endswith('/'):
+            # Build new URL preserving scheme and host via request.url / request.host_url
+            parsed = urlparse(request.url)
+            new_path = parsed.path + '/'
+            # urlunparse ensures query string is kept automatically if we use parsed._replace
+            new_url = urlunparse(parsed._replace(path=new_path))
+            # This new_url now has scheme “https” if ProxyFix made request.scheme="https"
+            return redirect(new_url, code=308)
 
     @app.route(f"{PREFIX_BASE}/<path:path>", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
     def proxy(path):
