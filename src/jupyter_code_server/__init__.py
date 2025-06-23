@@ -5,8 +5,8 @@ import logging
 
 from contextlib import closing
 from shutil import which
-from subprocess import run
-from tempfile import mkstemp
+from subprocess import check_output
+# from tempfile import mkstemp
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -19,7 +19,7 @@ def which_code_server():
 
 
 def setup_logger():
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger("jupyter_code_server_proxy")
     if len(logger.handlers) == 0:
         formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
         stream_handler = logging.StreamHandler(sys.stdout)
@@ -79,12 +79,25 @@ def setup_code_server():
     jh_generic_user = os.environ.get('NB_USER', 'jovyan')
     jh_username = os.environ.get("JUPYTERHUB_USER", None)
 
+    for handler in logger.handlers:
+        handler.flush()
+        handler.close()
+
     if jh_username is None:
         logger.error(f"Expected to be provided the username in 'JUPYTERHUB_USER' env var. Available env vars: {','.join(os.environ.keys())}.")
         raise ValueError("Cannot find jupyterhub username.")
+    
+    for handler in logger.handlers:
+        handler.flush()
+        handler.close()
 
     proxy_command = ["/bin/bash", "start_proxy.sh", str(code_server_port), jh_username, jh_generic_user, str(flask_proxy_port)]
     logger.info(f"Start command: {' '.join(proxy_command)}.")
     proxy_config_dict.update({"command": proxy_command})
 
     return proxy_config_dict
+
+
+if __name__ == "__main__":
+    config_dict = setup_code_server()
+    check_output(config_dict["command"])
