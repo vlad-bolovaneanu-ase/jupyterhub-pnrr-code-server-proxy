@@ -10,6 +10,7 @@ logger = setup_logger(name="proxy_wrapper")
 def create_app(port: int, username: str) -> Flask:
     app = Flask(__name__)
 
+    app.url_map.strict_slashes = False
     URL_HOME = "http://localhost:{port}".format(port=port)
     PREFIX_BASE = "/user/{user}/vscode".format(user=username)
 
