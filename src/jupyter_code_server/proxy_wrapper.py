@@ -1,4 +1,4 @@
-from flask import Flask, request, Response
+from flask import Flask, request, redirect, Response
 from urllib.parse import urljoin, urlparse
 import requests
 import argparse
@@ -15,9 +15,20 @@ def create_app(port: int, username: str) -> Flask:
     URL_HOME = "http://localhost:{port}".format(port=port)
     PREFIX_BASE = "/user/{user}/vscode".format(user=username)
 
+    @app.before_request
+    def ensure_trailing_slash():
+        # Apply only to your prefix path
+        if request.path.startswith("/user/") and not request.path.endswith('/'):
+            # If the request has subpaths and lacks a trailing slash, redirect with 308
+            full_path = request.path + '/'
+            if request.query_string:
+                full_path += '?' + request.query_string.decode()
+            return redirect(full_path, code=308)
+
     @app.route(f"{PREFIX_BASE}/<path:path>", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
     def proxy(path):
         url = f"{URL_HOME}/{path}"
+        logger.info(f"Request for {path}")
         headers = {key: value for key, value in request.headers if key.lower() != 'host'}
 
         resp = requests.request(
@@ -29,6 +40,10 @@ def create_app(port: int, username: str) -> Flask:
             allow_redirects=False,
             stream=True,
         )
+
+        # Log response status and headers
+        logger.info(f"Response status: {resp.status_code}")
+        logger.info(f"Response headers:\n" + "\n".join(f"{k}: {v}" for k, v in resp.headers.items()))
 
         if 300 <= resp.status_code < 400:
             location = resp.headers.get('Location')
