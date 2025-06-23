@@ -3,7 +3,7 @@ import requests
 import argparse
 import os
 
-from .logger import setup_logger
+from jupyter_code_server.logger import setup_logger
 
 logger = setup_logger(name="proxy_wrapper")
 

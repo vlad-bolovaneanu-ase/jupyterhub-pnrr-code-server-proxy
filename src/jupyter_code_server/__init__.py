@@ -5,7 +5,7 @@ from contextlib import closing
 from shutil import which
 from subprocess import check_output
 
-from .logger import setup_logger
+from jupyter_code_server.logger import setup_logger
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
