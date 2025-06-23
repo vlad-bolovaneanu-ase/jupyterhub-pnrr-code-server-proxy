@@ -1,5 +1,6 @@
 import requests
 import argparse
+import socket
 import time
 
 from flask import Flask, request, redirect, Response
@@ -16,6 +17,7 @@ def fetch_upstream_with_retries(method, url, headers, data, cookies):
     last_err = None
     for attempt in range(1, MAX_RETRIES+1):
         try:
+            logger.info(f"Attempt {attempt}/{MAX_RETRIES} to connect to upstream {url}")
             resp = requests.request(
                 method=method,
                 url=url,
@@ -26,8 +28,9 @@ def fetch_upstream_with_retries(method, url, headers, data, cookies):
                 stream=True,
                 timeout=5,
             )
+            logger.info(f"Attempt {attempt} succeeded with status {resp.status_code}")
             return resp
-        except ConnectionError as e:
+        except Exception as e:
             last_err = e
             logger.warning(f"Attempt {attempt}/{MAX_RETRIES} failed to connect to upstream {url}: {e}. Retrying...")
             time.sleep(RETRY_DELAY)
@@ -42,7 +45,7 @@ def create_app(port: int, username: str) -> Flask:
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     app.url_map.strict_slashes = False
-    URL_HOME = "http://localhost:{port}".format(port=port)
+    URL_HOME = "http://127.0.0.1:{port}".format(port=port)
     PREFIX_BASE = "/user/{user}/vscode".format(user=username)
 
     @app.route(f"{PREFIX_BASE}/<path:path>", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
@@ -70,6 +73,19 @@ def create_app(port: int, username: str) -> Flask:
     @app.route(f"{PREFIX_BASE}", defaults={"path": ""})
     def root(path):
         return proxy(path)
+    
+    @app.route("/health")
+    def health():
+        return "OK", 200
+    
+    @app.route("/test_upstream")
+    def test_upstream():
+        try:
+            sock = socket.create_connection(("127.0.0.1", port), timeout=2)
+            sock.close()
+            return "Socket connect OK", 200
+        except Exception as e:
+            return f"Socket connect failed: {e}", 500
 
     return app
 
