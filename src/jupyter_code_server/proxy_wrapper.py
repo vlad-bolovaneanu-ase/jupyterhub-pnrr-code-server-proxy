@@ -65,10 +65,10 @@ def create_app(port: int, username: str) -> Flask:
 
         return Response(resp.content, status=resp.status_code, headers=response_headers)
 
-    # @app.route(f"{PREFIX_BASE}/", defaults={"path": ""})
-    # @app.route(f"{PREFIX_BASE}", defaults={"path": ""})
-    # def root(path):
-    #     return proxy(path)
+    @app.route(f"{PREFIX_BASE}/", defaults={"path": ""})
+    @app.route(f"{PREFIX_BASE}", defaults={"path": ""})
+    def root(path):
+        return proxy(path)
 
     return app
 
