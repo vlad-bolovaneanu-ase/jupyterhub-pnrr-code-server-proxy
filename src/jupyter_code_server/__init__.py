@@ -36,4 +36,6 @@ def setup_code_server():
 
     proxy_command = ["/bin/bash", "start_proxy.sh", code_server_port, jh_username, jh_generic_user]
 
-    return proxy_config_dict.update({"command": proxy_command})
+    proxy_config_dict.update({"command": proxy_command})
+
+    return proxy_config_dict

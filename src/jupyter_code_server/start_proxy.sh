@@ -5,7 +5,7 @@ JUPYTERHUB_USER=${2}
 JUPYTERHUB_GENERIC_USER=${3:-jovyan}
 LISTEN_PORT=${4:-8888}
 
-$(which code-server) \
+code-server \
     --auth=none \
     --port=$CODE_PORT \
     --extensions-dir=/home/$JUPYTERHUB_GENERIC_USER/.vscode/extensions \
