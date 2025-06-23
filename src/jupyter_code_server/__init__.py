@@ -1,12 +1,11 @@
 import os
-import sys
 import socket
-import logging
 
 from contextlib import closing
 from shutil import which
 from subprocess import check_output
-# from tempfile import mkstemp
+
+from .logger import setup_logger
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -16,20 +15,6 @@ def which_code_server():
     if not command:
         raise FileNotFoundError('Could not find executable code-server!')
     return command
-
-
-def setup_logger():
-    logger = logging.getLogger("jupyter_code_server_proxy")
-    logger.setLevel(logging.INFO)
-    if len(logger.handlers) == 0:
-        formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
-        stream_handler = logging.StreamHandler(sys.stdout)
-        stream_handler.setFormatter(formatter)
-        logger.addHandler(stream_handler)
-        file_handler = logging.FileHandler("/opt/code-server/code_server_proxy.log")
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-    return logger
 
 
 def find_free_port():
@@ -56,7 +41,7 @@ def setup_code_server():
             "icon_path": os.path.join(_HERE, 'icons/vscode.svg')
             }
         }
-    logger = setup_logger()
+    logger = setup_logger(name="jupyter_code_server_proxy")
     logger.info("Hello!")
     try:
         code_server_port = int(os.environ.get('CODE_PORT', None))
