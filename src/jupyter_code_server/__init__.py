@@ -5,7 +5,7 @@ import logging
 
 from shutil import which
 import sys
-from tempfile import mkstemp
+# from tempfile import mkstemp
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -41,7 +41,7 @@ def setup_code_server():
         }
     }
     logger = setup_logger()
-    _, socket_file = mkstemp()
+    # _, socket_file = mkstemp()
 
     jh_generic_user = os.environ.get('NB_USER', 'jovyan')
     jh_username = os.environ.get("JUPYTERHUB_USER", None)
@@ -80,7 +80,7 @@ def setup_code_server():
 
     proxy_config_dict.update({
         "command": build_command,
-        "unix_socket": socket_file,
+        # "unix_socket": socket_file,
         "mappath": proxy_path,
     })
 
