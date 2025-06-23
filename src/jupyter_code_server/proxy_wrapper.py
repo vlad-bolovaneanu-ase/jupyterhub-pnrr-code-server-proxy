@@ -46,7 +46,7 @@ def main():
     parser = argparse.ArgumentParser(description="Flask proxy to wrap code-server behind a subpath.")
     parser.add_argument("--port", type=int, required=True, help="Internal code-server port")
     parser.add_argument("--username", type=str, required=True, help="JupyterHub username (e.g. tdi240)")
-    parser.add_argument("--listen", type=int, default=8888, help="Port to expose this proxy on")
+    parser.add_argument("--listen", type=int, required=True, help="Port to expose this proxy on")
 
     args = parser.parse_args()
 
