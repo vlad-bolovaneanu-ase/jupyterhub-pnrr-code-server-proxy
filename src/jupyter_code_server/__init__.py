@@ -80,9 +80,10 @@ def setup_code_server():
     jh_username = os.environ.get("JUPYTERHUB_USER", None)
 
     if jh_username is None:
-        raise ValueError(f"Expected to be provided the username in 'JUPYTERHUB_USER' env var. Available env vars: {','.join(os.environ.keys())}.")
+        logger.error(f"Expected to be provided the username in 'JUPYTERHUB_USER' env var. Available env vars: {','.join(os.environ.keys())}.")
+        raise ValueError("Cannot find jupyterhub username.")
 
-    proxy_command = ["/bin/bash", "start_proxy.sh", code_server_port, jh_username, jh_generic_user, flask_proxy_port]
+    proxy_command = ["/bin/bash", "start_proxy.sh", str(code_server_port), jh_username, jh_generic_user, str(flask_proxy_port)]
     logger.info(f"Start command: {' '.join(proxy_command)}.")
     proxy_config_dict.update({"command": proxy_command})
 
