@@ -21,70 +21,74 @@ def create_app(port: int, username: str) -> Flask:
     URL_HOME = "http://localhost:{port}".format(port=port)
     PREFIX_BASE = "/user/{user}/vscode".format(user=username)
 
-    @app.before_request
-    def ensure_trailing_slash():
-        # Only target paths under our PREFIX_BASE
-        # Also ensure we don’t redirect root "/user/…/vscode" itself if it's exactly the base without subpath—
-        # but if you want always slash, adjust accordingly.
-        # Here: if path starts with PREFIX_BASE and does not end with '/', redirect.
-        path = request.path
-        if path.startswith(PREFIX_BASE) and not path.endswith('/'):
-            # Build new URL preserving scheme and host via request.url / request.host_url
-            parsed = urlparse(request.url)
-            new_path = parsed.path + '/'
-            # urlunparse ensures query string is kept automatically if we use parsed._replace
-            new_url = urlunparse(parsed._replace(path=new_path))
-            # This new_url now has scheme “https” if ProxyFix made request.scheme="https"
-            return redirect(new_url, code=308)
+    # @app.before_request
+    # def ensure_trailing_slash():
+    #     # Only target paths under our PREFIX_BASE
+    #     # Also ensure we don’t redirect root "/user/…/vscode" itself if it's exactly the base without subpath—
+    #     # but if you want always slash, adjust accordingly.
+    #     # Here: if path starts with PREFIX_BASE and does not end with '/', redirect.
+    #     path = request.path
+    #     if path.startswith(PREFIX_BASE) and not path.endswith('/'):
+    #         # Build new URL preserving scheme and host via request.url / request.host_url
+    #         parsed = urlparse(request.url)
+    #         new_path = parsed.path + '/'
+    #         # urlunparse ensures query string is kept automatically if we use parsed._replace
+    #         new_url = urlunparse(parsed._replace(path=new_path))
+    #         # This new_url now has scheme “https” if ProxyFix made request.scheme="https"
+    #         return redirect(new_url, code=308)
 
     @app.route(f"{PREFIX_BASE}/<path:path>", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
     def proxy(path):
-        url = f"{URL_HOME}/{path}"
-        logger.info(f"Request for {path}")
-        headers = {key: value for key, value in request.headers if key.lower() != 'host'}
+        upstream = f"{URL_HOME}/{path}"
+        logger.info(f"Proxying request {request.method} {request.path!r} → {upstream!r}")
+        # Copy headers except Host, but may want to set Host explicitly to "localhost:<port>"
+        headers = {k: v for k, v in request.headers if k.lower() != 'host'}
+        try:
+            resp = requests.request(
+                method=request.method,
+                url=upstream,
+                headers=headers,
+                data=request.get_data(),
+                cookies=request.cookies,
+                allow_redirects=False,
+                stream=True,
+            )
+        except Exception as e:
+            logger.exception(f"Failed to connect to upstream {upstream}")
+            return ("Upstream connection failed", 502)
 
-        resp = requests.request(
-            method=request.method,
-            url=url,
-            headers=headers,
-            data=request.get_data(),
-            cookies=request.cookies,
-            allow_redirects=False,
-            stream=True,
-        )
+        # Log status & headers
+        logger.info(f"Upstream responded: {resp.status_code}")
+        for k, v in resp.headers.items():
+            logger.debug(f"Upstream header: {k}: {v}")
 
-        # Log response status and headers
-        logger.info(f"Response status: {resp.status_code}")
-        logger.info(f"Response headers:\n" + "\n".join(f"{k}: {v}" for k, v in resp.headers.items()))
-
+        # Handle redirects: rewrite Location to include the PREFIX_BASE with correct scheme/host
         # if 300 <= resp.status_code < 400:
         #     location = resp.headers.get('Location')
         #     if location:
-        #         # Rewrite Location header to proxy base path
-        #         # If location is absolute URL, extract path part
-        #         parsed = urlparse(location)
-        #         # Use path + query + fragment (ignore scheme/netloc to avoid redirecting outside proxy)
-        #         new_path = parsed.path
-        #         if parsed.query:
-        #             new_path += '?' + parsed.query
-        #         if parsed.fragment:
-        #             new_path += '#' + parsed.fragment
-
-        #         # Join with your proxy prefix base path
-        #         # For example, prefix "/user/vlad/vscode"
-        #         new_location = urljoin(PREFIX_BASE + '/', new_path.lstrip('/'))
-
-        #         # Build the response with the rewritten Location header
+        #         parsed_loc = urlparse(location)
+        #         # Build new path: parsed_loc.path may be absolute or relative.
+        #         new_path = parsed_loc.path
+        #         if parsed_loc.query:
+        #             new_path += '?' + parsed_loc.query
+        #         if parsed_loc.fragment:
+        #             new_path += '#' + parsed_loc.fragment
+        #         # Prepend PREFIX_BASE
+        #         # Use urljoin to avoid duplicate slashes
+        #         rewritten = urljoin(PREFIX_BASE + '/', new_path.lstrip('/'))
+        #         # Now build full URL with correct scheme+host: request.host_url gives e.g. "https://hpc.ase.ro/"
+        #         # strip trailing slash then append rewritten path:
+        #         new_location = request.host_url.rstrip('/') + rewritten
+        #         logger.info(f"Rewriting redirect Location {location!r} → {new_location!r}")
+        #         # Build headers for Response, excluding content-length so Flask recalculates it
         #         headers = [(k, v) for k, v in resp.headers.items() if k.lower() != 'content-length']
-        #         # Replace Location with rewritten one
+        #         # Replace Location header
         #         headers = [(k, v) if k.lower() != 'location' else ('Location', new_location) for k, v in headers]
-
         #         return Response(resp.content, status=resp.status_code, headers=headers)
 
-        # For non-redirect responses, copy headers as usual, excluding hop-by-hop
-        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-        response_headers = [(k, v) for k, v in resp.raw.headers.items() if k.lower() not in excluded_headers]
-
+        # Non-redirect: forward headers, excluding hop-by-hop
+        excluded = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+        response_headers = [(k, v) for k, v in resp.headers.items() if k.lower() not in excluded]
         return Response(resp.content, status=resp.status_code, headers=response_headers)
 
     @app.route(f"{PREFIX_BASE}/", defaults={"path": ""})
