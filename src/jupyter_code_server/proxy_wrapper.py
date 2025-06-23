@@ -31,7 +31,7 @@ def create_app(port: int, username: str) -> Flask:
         excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
         response_headers = [(k, v) for k, v in resp.raw.headers.items()
                             if k.lower() not in excluded_headers]
-        logger.info(F"Proxy {PREFIX_BASE}/{path} -> {path}")
+        logger.info(f"Proxy {PREFIX_BASE}/{path} -> {path}")
         return Response(resp.content, status=resp.status_code, headers=response_headers)
 
     @app.route(f"{PREFIX_BASE}/", defaults={"path": ""})
