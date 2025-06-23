@@ -17,6 +17,7 @@ def which_code_server():
 
 def setup_logger():
     logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
     if len(logger.handlers) == 0:
         formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
         stream_handler = logging.StreamHandler(sys.stdout)
@@ -43,7 +44,12 @@ def setup_code_server():
     _, socket_file = mkstemp()
 
     jh_generic_user = os.environ.get('NB_USER', 'jovyan')
-    # jh_username = os.environ.get("JUPYTERHUB_USER", None)
+    jh_username = os.environ.get("JUPYTERHUB_USER", None)
+
+    if jh_username is None:
+        raise ValueError(f"Expected 'JUPYTERHUB_USER' env var to be set. Avaialble env vars: {', '.join(os.environ.keys())}.")
+    
+    logger.info(f"Got username '{jh_username}'.")
 
     extensions_dir = f"/home/{jh_generic_user}/.vscode/extensions"
     logger.info(f"Extensions dir: '{extensions_dir}'.")
@@ -55,8 +61,8 @@ def setup_code_server():
         logger.info(f"Got base_url '{base_url}'")
         code_server_arguments = [
             "--auth=none",
-            # "--port", "{port}",
-            "--socket", "{unix_socket}",
+            "--port", "{port}",
+            # "--socket", "{unix_socket}",
             "--extensions-dir", f"{extensions_dir}",
             "--disable-update-check",
             "--disable-file-uploads",
@@ -67,9 +73,10 @@ def setup_code_server():
 
 
     def proxy_path(path: str):
-        prefix_path_pattern = fr"/user/.*?/vscode"
+        prefix_path_pattern = fr"/user/{jh_username}/vscode"
         replaced_path = re.sub(prefix_path_pattern, "", path)
         logger.info(f"Proxied '{path}' -> '{replaced_path}'.")
+        return replaced_path
 
     proxy_config_dict.update({
         "command": build_command,
