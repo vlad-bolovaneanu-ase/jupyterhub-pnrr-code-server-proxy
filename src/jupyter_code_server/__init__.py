@@ -57,7 +57,7 @@ def setup_code_server():
             "--auth=none",
             # "--port", "{port}",
             "--socket", "{unix_socket}",
-            "--extensions-dir", "{extensions_dir}",
+            "--extensions-dir", f"{extensions_dir}",
             "--disable-update-check",
             "--disable-file-uploads",
             "--disable-file-downloads",
@@ -74,7 +74,6 @@ def setup_code_server():
     proxy_config_dict.update({
         "command": build_command,
         "unix_socket": socket_file,
-        "extensions_dir": extensions_dir,
         "mappath": proxy_path,
     })
 
