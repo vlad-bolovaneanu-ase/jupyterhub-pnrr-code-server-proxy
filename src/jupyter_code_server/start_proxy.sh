@@ -12,7 +12,7 @@ code-server --auth=none --port=$CODE_PORT \
 
 CS_PID=$!
 
-python3 proxy_wrapper.py --port $CODE_PORT --username $JUPYTERHUB_USER --listen $LISTEN_PORT &
+python3 $(dirname "$0")/proxy_wrapper.py --port $CODE_PORT --username $JUPYTERHUB_USER --listen $LISTEN_PORT &
 
 PROXY_PID=$!
 
