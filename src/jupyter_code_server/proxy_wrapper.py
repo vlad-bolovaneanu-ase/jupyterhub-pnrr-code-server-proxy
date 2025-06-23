@@ -1,5 +1,5 @@
 from flask import Flask, request, redirect, Response
-from urllib.parse import urljoin, urlparse, urlunparse
+# from urllib.parse import urljoin, urlparse, urlunparse
 import requests
 import argparse
 import os
@@ -14,16 +14,6 @@ def create_app(port: int, username: str) -> Flask:
     app.url_map.strict_slashes = False
     URL_HOME = "http://localhost:{port}".format(port=port)
     PREFIX_BASE = "/user/{user}/vscode".format(user=username)
-
-    @app.before_request
-    def ensure_trailing_slash():
-        # Apply only to your prefix path
-        if request.path.startswith("/user/") and not request.path.endswith('/'):
-            # If the request has subpaths and lacks a trailing slash, redirect with 308
-            parsed = urlparse(request.url)
-            new_path = parsed.path + '/'
-            new_url = urlunparse(parsed._replace(path=new_path))
-            return redirect(new_url, code=308)
 
     @app.route(f"{PREFIX_BASE}/<path:path>", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
     def proxy(path):
@@ -45,29 +35,29 @@ def create_app(port: int, username: str) -> Flask:
         logger.info(f"Response status: {resp.status_code}")
         logger.info(f"Response headers:\n" + "\n".join(f"{k}: {v}" for k, v in resp.headers.items()))
 
-        if 300 <= resp.status_code < 400:
-            location = resp.headers.get('Location')
-            if location:
-                # Rewrite Location header to proxy base path
-                # If location is absolute URL, extract path part
-                parsed = urlparse(location)
-                # Use path + query + fragment (ignore scheme/netloc to avoid redirecting outside proxy)
-                new_path = parsed.path
-                if parsed.query:
-                    new_path += '?' + parsed.query
-                if parsed.fragment:
-                    new_path += '#' + parsed.fragment
+        # if 300 <= resp.status_code < 400:
+        #     location = resp.headers.get('Location')
+        #     if location:
+        #         # Rewrite Location header to proxy base path
+        #         # If location is absolute URL, extract path part
+        #         parsed = urlparse(location)
+        #         # Use path + query + fragment (ignore scheme/netloc to avoid redirecting outside proxy)
+        #         new_path = parsed.path
+        #         if parsed.query:
+        #             new_path += '?' + parsed.query
+        #         if parsed.fragment:
+        #             new_path += '#' + parsed.fragment
 
-                # Join with your proxy prefix base path
-                # For example, prefix "/user/vlad/vscode"
-                new_location = urljoin(PREFIX_BASE + '/', new_path.lstrip('/'))
+        #         # Join with your proxy prefix base path
+        #         # For example, prefix "/user/vlad/vscode"
+        #         new_location = urljoin(PREFIX_BASE + '/', new_path.lstrip('/'))
 
-                # Build the response with the rewritten Location header
-                headers = [(k, v) for k, v in resp.headers.items() if k.lower() != 'content-length']
-                # Replace Location with rewritten one
-                headers = [(k, v) if k.lower() != 'location' else ('Location', new_location) for k, v in headers]
+        #         # Build the response with the rewritten Location header
+        #         headers = [(k, v) for k, v in resp.headers.items() if k.lower() != 'content-length']
+        #         # Replace Location with rewritten one
+        #         headers = [(k, v) if k.lower() != 'location' else ('Location', new_location) for k, v in headers]
 
-                return Response(resp.content, status=resp.status_code, headers=headers)
+        #         return Response(resp.content, status=resp.status_code, headers=headers)
 
         # For non-redirect responses, copy headers as usual, excluding hop-by-hop
         excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
