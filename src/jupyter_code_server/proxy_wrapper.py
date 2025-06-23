@@ -6,7 +6,7 @@ import os
 def create_app(port: int, username: str) -> Flask:
     app = Flask(__name__)
 
-    URL_HOME = "http://localhost:{port}".format(poer=port)
+    URL_HOME = "http://localhost:{port}".format(port=port)
     PREFIX_BASE = "/user/{user}/vscode".format(user=username)
 
     @app.route(f"{PREFIX_BASE}/<path:path>", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
