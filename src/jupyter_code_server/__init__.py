@@ -20,6 +20,7 @@ def which_code_server():
 
 def setup_logger():
     logger = logging.getLogger("jupyter_code_server_proxy")
+    logger.setLevel(logging.INFO)
     if len(logger.handlers) == 0:
         formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
         stream_handler = logging.StreamHandler(sys.stdout)
@@ -56,6 +57,7 @@ def setup_code_server():
             }
         }
     logger = setup_logger()
+    logger.info("Hello!")
     try:
         code_server_port = int(os.environ.get('CODE_PORT', None))
         if is_port_in_use(code_server_port):
