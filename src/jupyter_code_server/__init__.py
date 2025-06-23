@@ -93,7 +93,7 @@ def setup_code_server():
         handler.flush()
         handler.close()
 
-    proxy_command = ["/bin/bash", "start_proxy.sh", str(code_server_port), jh_username, jh_generic_user, str(flask_proxy_port)]
+    proxy_command = ["/bin/bash", os.path.join(_HERE, "start_proxy.sh"), str(code_server_port), jh_username, jh_generic_user, str(flask_proxy_port)]
     logger.info(f"Start command: {' '.join(proxy_command)}.")
     proxy_config_dict.update({"command": proxy_command})
 
